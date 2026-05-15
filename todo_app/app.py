@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect
 import json
 import os
+from datetime import datetime
 
 app = Flask(__name__)
 FILE_NAME = 'tasks.json'
@@ -25,7 +26,10 @@ def index():
 def add_task():
     new_task = request.form['task']
     if new_task:
-        tasks.append(new_task)
+        tasks.append({
+            'text': new_task,
+            'date': datetime.now().strftime('%Y-%m-%d')
+        })
         save_tasks(tasks)
     return redirect('/')
 
@@ -41,6 +45,32 @@ def clear_tasks():
     tasks.clear()
     save_tasks(tasks)
     return redirect('/')
+
+#  НОВЫЙ МАРШРУТ: Редактирование задачи
+@app.route('/edit/<int:task_id>', methods=['GET', 'POST'])
+def edit_task(task_id):
+    if task_id < 0 or task_id >= len(tasks):
+        return "Задача не найдена", 404
+    
+    if request.method == 'POST':
+        new_text = request.form.get('task', '').strip()
+        old_text = tasks[task_id]['text']
+        
+        # Проверка на пустое поле
+        if new_text == '':
+            return render_template('edit.html', task=tasks[task_id], message="Текст не может быть пустым!")
+        
+        # Проверка: ничего не изменено
+        if new_text == old_text:
+            return render_template('edit.html', task=tasks[task_id], info_message="Ничего не изменено")
+        
+        # Обновляем только текст, дата остаётся прежней
+        tasks[task_id]['text'] = new_text
+        save_tasks(tasks)
+        return redirect('/')
+    
+    # GET-запрос: показываем форму редактирования
+    return render_template('edit.html', task=tasks[task_id])
 
 if __name__ == '__main__':
     app.run(debug=True)
